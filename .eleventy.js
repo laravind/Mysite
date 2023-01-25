@@ -1,38 +1,64 @@
-const pluginTailwind = require('eleventy-plugin-tailwindcss');
+const yaml = require("js-yaml");
+const { DateTime } = require("luxon");
+const syntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
+const htmlmin = require("html-minifier");
 
-module.exports = (config) => {
-  config.addPlugin(pluginTailwind, {
-    src: 'src/assets/css/*'
+module.exports = function (eleventyConfig) {
+  // Disable automatic use of your .gitignore
+  eleventyConfig.setUseGitIgnore(false);
+
+  // Merge data instead of overriding
+  eleventyConfig.setDataDeepMerge(true);
+
+  // human readable date
+  eleventyConfig.addFilter("readableDate", (dateObj) => {
+    return DateTime.fromJSDate(dateObj, { zone: "utc" }).toFormat(
+      "dd LLL yyyy"
+    );
   });
 
-  config.setDataDeepMerge(true);
+  // Syntax Highlighting for Code blocks
+  eleventyConfig.addPlugin(syntaxHighlight);
 
-  config.addPassthroughCopy('src/assets/img/**/*');
-  config.addPassthroughCopy({ 'src/posts/img/**/*': 'assets/img/' });
+  // To Support .yaml Extension in _data
+  // You may remove this if you can use JSON
+  eleventyConfig.addDataExtension("yaml", (contents) => yaml.load(contents));
 
-  config.addWatchTarget("src/assets/js/");
+  // Copy Static Files to /_Site
+  eleventyConfig.addPassthroughCopy({
+    "./src/admin/config.yml": "./admin/config.yml",
+    "./node_modules/alpinejs/dist/cdn.min.js": "./static/js/alpine.js",
+    "./node_modules/prismjs/themes/prism-tomorrow.css":
+      "./static/css/prism-tomorrow.css",
+  });
 
-  config.addLayoutAlias('default', 'layouts/default.njk');
-  config.addLayoutAlias('post', 'layouts/post.njk');
+  // Copy Image Folder to /_site
+  eleventyConfig.addPassthroughCopy("./src/static/img");
 
-  config.addFilter('readableDate', require('./lib/filters/readableDate'));
-  config.addFilter('minifyJs', require('./lib/filters/minifyJs'));
+  // Copy favicon to route of /_site
+  eleventyConfig.addPassthroughCopy("./src/favicon.ico");
 
-  config.addTransform('minifyHtml', require('./lib/transforms/minifyHtml'));
+  // Minify HTML
+  eleventyConfig.addTransform("htmlmin", function (content, outputPath) {
+    // Eleventy 1.0+: use this.inputPath and this.outputPath instead
+    if (outputPath.endsWith(".html")) {
+      let minified = htmlmin.minify(content, {
+        useShortDoctype: true,
+        removeComments: true,
+        collapseWhitespace: true,
+      });
+      return minified;
+    }
 
-  config.addCollection('posts', require('./lib/collections/posts'));
-  config.addCollection('tagList', require('./lib/collections/tagList'));
-  config.addCollection('pagedPosts', require('./lib/collections/pagedPosts'));
-  config.addCollection('pagedPostsByTag', require('./lib/collections/pagedPostsByTag'));
+    return content;
+  });
 
+  // Let Eleventy transform HTML files as nunjucks
+  // So that we can use .html instead of .njk
   return {
     dir: {
-      input: 'src',
-      output: 'dist'
+      input: "src",
     },
-    // pathPrefix: "/subfolder/",
-    templateFormats: ['md', 'njk', 'html'],
-    dataTemplateEngine: 'njk',
-    markdownTemplateEngine: 'njk'
+    htmlTemplateEngine: "njk",
   };
 };
