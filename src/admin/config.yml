@@ -5,7 +5,7 @@ backend:
   ### enable below lines for github integration ###
    ###name: github
   repo: laravind/Mysite
-  cms_label_prefix:	netlify-cms/
+  ###cms_label_prefix:	netlify-cms/
   
 media_folder: "src/static/img"
 public_folder: "/static/img"
